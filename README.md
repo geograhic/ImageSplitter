@@ -72,9 +72,3 @@ ImageSplitter 是一个小巧实用的图片切割工具，适合将大图切分
 联系方式
 
 - GitHub: @geograhic
-
-感谢使用 ImageSplitter！如果需要，我可以：
-
-- 翻译 README 为英文版；
-- 在 README 中加入截图、使用演示 GIF 和更详细的打包说明；
-- 帮你把可执行文件放到 Releases 并创建 release 草稿（需要你的确认与授权）。
