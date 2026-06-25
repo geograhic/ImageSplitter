@@ -1,0 +1,45 @@
+{
+  "name": "imageslicer-pro-portable",
+  "version": "1.1.0",
+  "description": "ImageSlicer Pro portable desktop app",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.local.imageslicerpro",
+    "productName": "ImageSlicer Pro",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "index.html",
+      "app.js",
+      "styles.css",
+      "vendor/**/*"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ImageSlicer-Pro-Portable-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "ImageSlicer-Pro-Portable-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

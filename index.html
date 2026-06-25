@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>长图分割大师 · ImageSlicer Pro</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect x="2" y="2" width="24" height="24" rx="4" fill="url(#grad1)"/>
+          <line x1="2" y1="10" x2="26" y2="10" stroke="white" stroke-width="1.5"/>
+          <line x1="2" y1="18" x2="26" y2="18" stroke="white" stroke-width="1.5"/>
+          <line x1="10" y1="2" x2="10" y2="26" stroke="white" stroke-width="1.5"/>
+          <defs>
+            <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">ImageSlicer <em>Pro</em></span>
+      </div>
+      <nav class="topnav">
+        <a href="#" class="nav-item active" data-tab="workspace">工作台</a>
+        <a href="#" class="nav-item" data-tab="batch">批量处理</a>
+        <a href="#" class="nav-item" data-tab="settings">设置</a>
+        <a href="#" class="nav-item" data-tab="help">帮助</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-icon" id="btn-undo" title="撤销 (Ctrl+Z)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-redo" title="重做 (Ctrl+Y)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"/></svg>
+      </button>
+      <div class="divider-v"></div>
+      <button class="btn-primary" id="btn-export-all">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出全部
+      </button>
+    </div>
+  </header>
+
+  <!-- 主体布局 -->
+  <div class="app-body">
+    <!-- 左侧工具面板 -->
+    <aside class="sidebar-left" id="sidebar-left">
+      <div class="panel-section">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          分割模式
+          <button class="help-btn" data-help="split-modes">?</button>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-card active" data-mode="horizontal" title="水平分割 - 按行切割图片">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="2" y1="9" x2="22" y2="9" stroke="#6366f1" stroke-width="2"/>
+              <line x1="2" y1="16" x2="22" y2="16" stroke="#6366f1" stroke-width="2"/>
+            </svg>
+            <span>水平分割</span>
+          </button>
+          <button class="mode-card" data-mode="vertical" title="垂直分割 - 按列切割图片">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="9" y1="2" x2="9" y2="22" stroke="#6366f1" stroke-width="2"/>
+              <line x1="16" y1="2" x2="16" y2="22" stroke="#6366f1" stroke-width="2"/>
+            </svg>
+            <span>垂直分割</span>
+          </button>
+          <button class="mode-card" data-mode="grid" title="网格分割 - 将图片分成矩阵格">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="2" y1="9" x2="22" y2="9" stroke="#6366f1" stroke-width="2"/>
+              <line x1="2" y1="16" x2="22" y2="16" stroke="#6366f1" stroke-width="2"/>
+              <line x1="9" y1="2" x2="9" y2="22" stroke="#6366f1" stroke-width="2"/>
+              <line x1="16" y1="2" x2="16" y2="22" stroke="#6366f1" stroke-width="2"/>
+            </svg>
+            <span>网格分割</span>
+          </button>
+          <button class="mode-card" data-mode="fixed-height" title="固定高度 - 按指定像素高度分割">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="2" y1="8" x2="22" y2="8" stroke="#6366f1" stroke-width="2"/>
+              <line x1="2" y1="14" x2="22" y2="14" stroke="#6366f1" stroke-width="2"/>
+              <text x="12" y="21" text-anchor="middle" font-size="4" fill="currentColor">PX</text>
+            </svg>
+            <span>固定高度</span>
+          </button>
+          <button class="mode-card" data-mode="fixed-width" title="固定宽度 - 按指定像素宽度分割">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="8" y1="2" x2="8" y2="22" stroke="#6366f1" stroke-width="2"/>
+              <line x1="15" y1="2" x2="15" y2="22" stroke="#6366f1" stroke-width="2"/>
+              <text x="22" y="14" text-anchor="middle" font-size="4" fill="currentColor">PX</text>
+            </svg>
+            <span>固定宽度</span>
+          </button>
+          <button class="mode-card" data-mode="custom" title="自定义分割 - 手动拖拽设置分割线">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M7 7l10 10M17 7L7 17" stroke="#6366f1" stroke-width="2"/>
+            </svg>
+            <span>自由分割</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 分割参数 -->
+      <div class="panel-section" id="params-panel">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+          分割参数
+          <button class="help-btn" data-help="params">?</button>
+        </div>
+
+        <!-- 水平/垂直等分参数 -->
+        <div class="param-group" id="param-equal-split">
+          <label class="param-label">等分数量
+            <span class="param-hint">将图片等分为N份</span>
+          </label>
+          <div class="number-input-wrap">
+            <button class="num-btn" data-action="dec" data-target="split-count">−</button>
+            <input type="number" id="split-count" class="num-input" value="3" min="2" max="100">
+            <button class="num-btn" data-action="inc" data-target="split-count">+</button>
+          </div>
+        </div>
+
+        <!-- 固定尺寸参数 -->
+        <div class="param-group hidden" id="param-fixed-size">
+          <label class="param-label">分块尺寸（像素）
+            <span class="param-hint">每块的高度/宽度</span>
+          </label>
+          <div class="number-input-wrap">
+            <button class="num-btn" data-action="dec" data-target="fixed-size">−</button>
+            <input type="number" id="fixed-size" class="num-input" value="800" min="10" max="99999" step="10">
+            <button class="num-btn" data-action="inc" data-target="fixed-size">+</button>
+          </div>
+          <div class="param-info" id="fixed-size-info">预计分割为 — 块</div>
+        </div>
+
+        <!-- 网格参数 -->
+        <div class="param-group hidden" id="param-grid">
+          <label class="param-label">列数</label>
+          <div class="number-input-wrap">
+            <button class="num-btn" data-action="dec" data-target="grid-cols">−</button>
+            <input type="number" id="grid-cols" class="num-input" value="3" min="1" max="20">
+            <button class="num-btn" data-action="inc" data-target="grid-cols">+</button>
+          </div>
+          <label class="param-label" style="margin-top:10px">行数</label>
+          <div class="number-input-wrap">
+            <button class="num-btn" data-action="dec" data-target="grid-rows">−</button>
+            <input type="number" id="grid-rows" class="num-input" value="3" min="1" max="20">
+            <button class="num-btn" data-action="inc" data-target="grid-rows">+</button>
+          </div>
+        </div>
+
+        <!-- 重叠/间隔设置 -->
+        <div class="param-group">
+          <label class="param-label">分割线重叠（像素）
+            <span class="param-hint">相邻片段重叠量，避免内容截断</span>
+          </label>
+          <div class="slider-wrap">
+            <input type="range" id="overlap" class="slider" min="0" max="200" value="0" step="1">
+            <span class="slider-val" id="overlap-val">0 px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输出设置 -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          输出设置
+          <button class="help-btn" data-help="output">?</button>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">输出格式</label>
+          <div class="select-wrap">
+            <select id="output-format" class="select-input">
+              <option value="png">PNG（无损，透明支持）</option>
+              <option value="jpeg">JPEG（有损，小体积）</option>
+              <option value="webp">WebP（现代格式，高压缩）</option>
+              <option value="original">保持原格式</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="param-group" id="quality-group">
+          <label class="param-label">输出质量
+            <span class="param-hint">JPEG/WebP 质量（PNG忽略）</span>
+          </label>
+          <div class="slider-wrap">
+            <input type="range" id="output-quality" class="slider" min="1" max="100" value="92" step="1">
+            <span class="slider-val" id="quality-val">92%</span>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">文件命名规则
+            <span class="param-hint">使用 {name} {index} {row} {col} {date} 占位符</span>
+          </label>
+          <input type="text" id="naming-rule" class="text-input" value="{name}_part_{index}" placeholder="{name}_part_{index}">
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">序号起始值</label>
+          <div class="number-input-wrap">
+            <button class="num-btn" data-action="dec" data-target="index-start">−</button>
+            <input type="number" id="index-start" class="num-input" value="1" min="0" max="999">
+            <button class="num-btn" data-action="inc" data-target="index-start">+</button>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="add-watermark">
+            <span>添加水印</span>
+            <button class="help-btn" data-help="watermark">?</button>
+          </label>
+          <div class="sub-group hidden" id="watermark-options">
+            <input type="text" id="watermark-text" class="text-input" placeholder="水印文字内容" value="© ImageSlicer Pro">
+            <div class="row-2">
+              <div class="select-wrap" style="flex:1">
+                <select id="watermark-pos" class="select-input">
+                  <option value="br">右下角</option>
+                  <option value="bl">左下角</option>
+                  <option value="tr">右上角</option>
+                  <option value="tl">左上角</option>
+                  <option value="center">居中</option>
+                </select>
+              </div>
+              <input type="color" id="watermark-color" value="#ffffff" style="width:36px;height:32px;border-radius:6px;border:1px solid var(--border);cursor:pointer;padding:2px">
+            </div>
+            <div class="slider-wrap">
+              <input type="range" id="watermark-opacity" class="slider" min="10" max="100" value="50" step="5">
+              <span class="slider-val" id="watermark-opacity-val">50%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="add-border">
+            <span>添加边框/留白</span>
+          </label>
+          <div class="sub-group hidden" id="border-options">
+            <div class="row-2">
+              <div style="flex:1">
+                <label class="mini-label">边距(px)</label>
+                <input type="number" id="border-size" class="text-input" value="0" min="0" max="200">
+              </div>
+              <div style="flex:1">
+                <label class="mini-label">颜色</label>
+                <input type="color" id="border-color" value="#ffffff" style="width:100%;height:32px;border-radius:6px;border:1px solid var(--border);cursor:pointer;padding:2px">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="zip-download" checked>
+            <span>打包ZIP下载</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 预设配置 -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          预设配置
+          <button class="help-btn" data-help="presets">?</button>
+        </div>
+        <div class="preset-list" id="preset-list">
+          <button class="preset-item" data-preset="weibo">微博长图(3等分)</button>
+          <button class="preset-item" data-preset="instagram">Instagram方形(9宫格)</button>
+          <button class="preset-item" data-preset="wechat">微信文章(800px)</button>
+          <button class="preset-item" data-preset="scroll">连载漫画(1200px)</button>
+        </div>
+        <div class="row-2" style="gap:6px;margin-top:8px">
+          <button class="btn-sm btn-secondary" id="btn-save-preset">保存当前</button>
+          <button class="btn-sm btn-ghost" id="btn-manage-presets">管理预设</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 中间工作区 -->
+    <main class="workspace" id="workspace">
+      <!-- 上传区域 -->
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-content">
+          <div class="upload-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="url(#uploadGrad)" stroke-width="1.2">
+              <defs>
+                <linearGradient id="uploadGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#a78bfa"/>
+                </linearGradient>
+              </defs>
+              <rect x="3" y="3" width="18" height="18" rx="3"/>
+              <polyline points="8 12 12 8 16 12"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+            </svg>
+          </div>
+          <h3>拖拽图片到此处</h3>
+          <p>支持 JPG · PNG · WebP · GIF · BMP · TIFF · AVIF</p>
+          <p class="upload-sub">最大支持 100MB 超大图片 · 批量上传最多 50 张</p>
+          <div class="upload-actions">
+            <button class="btn-primary btn-lg" id="btn-select-file">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              选择图片
+            </button>
+            <button class="btn-secondary btn-lg" id="btn-paste">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              粘贴 Ctrl+V
+            </button>
+          </div>
+          <p class="upload-tip">💡 截图后直接 Ctrl+V 粘贴，或拖入截图文件</p>
+        </div>
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none">
+      </div>
+
+      <!-- 图片编辑区 -->
+      <div class="editor-area hidden" id="editor-area">
+        <!-- 工具栏 -->
+        <div class="editor-toolbar">
+          <div class="toolbar-left">
+            <span class="img-info" id="img-info">1920 × 6000 px · PNG · 3.2 MB</span>
+            <span class="split-info" id="split-info">→ 将分割为 <strong id="split-count-display">3</strong> 块</span>
+          </div>
+          <div class="toolbar-center">
+            <div class="zoom-control">
+              <button class="btn-icon btn-sm" id="zoom-out" title="缩小">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </button>
+              <span class="zoom-level" id="zoom-level">100%</span>
+              <button class="btn-icon btn-sm" id="zoom-in" title="放大">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </button>
+              <button class="btn-icon btn-sm" id="zoom-fit" title="适合窗口">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn-sm btn-ghost" id="btn-rotate">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              旋转
+            </button>
+            <button class="btn-sm btn-ghost" id="btn-flip-h">水平翻转</button>
+            <button class="btn-sm btn-ghost" id="btn-flip-v">垂直翻转</button>
+            <button class="btn-sm btn-ghost" id="btn-crop-mode" title="裁剪模式 - 先裁剪后分割">✂ 预裁剪</button>
+            <button class="btn-sm btn-secondary" id="btn-apply-split">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              应用分割
+            </button>
+            <button class="btn-sm btn-danger" id="btn-clear-image">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></polyline></svg>
+              清除
+            </button>
+          </div>
+        </div>
+
+        <!-- 画布容器 -->
+        <div class="canvas-container" id="canvas-container">
+          <div class="canvas-wrap" id="canvas-wrap">
+            <canvas id="main-canvas"></canvas>
+            <div class="guides-layer" id="guides-layer"></div>
+            <!-- 裁剪遮罩 -->
+            <div class="crop-overlay hidden" id="crop-overlay">
+              <div class="crop-box" id="crop-box">
+                <div class="crop-handle nw"></div>
+                <div class="crop-handle ne"></div>
+                <div class="crop-handle sw"></div>
+                <div class="crop-handle se"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 缩略图信息条 -->
+        <div class="image-tabs" id="image-tabs"></div>
+      </div>
+    </main>
+
+    <!-- 右侧预览面板 -->
+    <aside class="sidebar-right" id="sidebar-right">
+      <div class="panel-section">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          分割预览
+          <div class="panel-actions">
+            <button class="btn-icon btn-xs" id="btn-preview-reload" title="刷新预览">↻</button>
+          </div>
+        </div>
+        <div class="preview-list" id="preview-list">
+          <div class="preview-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>上传图片后显示预览</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分割结果统计 -->
+      <div class="panel-section" id="stats-panel">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          分割统计
+        </div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">总块数</span>
+            <span class="stat-value" id="stat-total">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">最大块</span>
+            <span class="stat-value" id="stat-maxsize">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">原图尺寸</span>
+            <span class="stat-value" id="stat-origsize">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">原图体积</span>
+            <span class="stat-value" id="stat-filesize">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 单块操作 -->
+      <div class="panel-section" id="piece-ops-panel">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          片段操作
+          <button class="help-btn" data-help="piece-ops">?</button>
+        </div>
+        <div class="ops-hint">点击预览中的片段可进行单独操作</div>
+        <div class="ops-grid" id="ops-grid">
+          <button class="op-btn" id="op-download-single" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下载此块
+          </button>
+          <button class="op-btn" id="op-delete-piece" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            排除此块
+          </button>
+          <button class="op-btn" id="op-move-up" disabled>▲ 上移</button>
+          <button class="op-btn" id="op-move-down" disabled>▼ 下移</button>
+          <button class="op-btn" id="op-merge-next" disabled>合并下一块</button>
+          <button class="op-btn" id="op-split-here" disabled>在此再分割</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 底部状态栏 -->
+  <footer class="statusbar">
+    <div class="status-left">
+      <span id="status-msg">就绪 · 请上传图片开始分割</span>
+    </div>
+    <div class="status-center">
+      <div class="progress-bar hidden" id="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+    <div class="status-right">
+      <span class="kbd-hint">Ctrl+Z 撤销 · Ctrl+O 打开 · Del 删除线 · Ctrl+A 全选</span>
+    </div>
+  </footer>
+
+  <!-- 帮助抽屉 -->
+  <div class="drawer-overlay hidden" id="help-overlay"></div>
+  <div class="help-drawer hidden" id="help-drawer">
+    <div class="drawer-header">
+      <h3 id="help-title">帮助文档</h3>
+      <button class="btn-icon" id="close-help">×</button>
+    </div>
+    <div class="drawer-body" id="help-body"></div>
+  </div>
+
+  <!-- 预设管理弹窗 -->
+  <div class="modal-overlay hidden" id="preset-modal-overlay">
+    <div class="modal" id="preset-modal">
+      <div class="modal-header">
+        <h3>管理预设</h3>
+        <button class="btn-icon" id="close-preset-modal">×</button>
+      </div>
+      <div class="modal-body" id="preset-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- 保存预设弹窗 -->
+  <div class="modal-overlay hidden" id="save-preset-overlay">
+    <div class="modal" style="width:360px">
+      <div class="modal-header">
+        <h3>保存预设</h3>
+        <button class="btn-icon" id="close-save-preset">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="param-label">预设名称</label>
+        <input type="text" id="new-preset-name" class="text-input" placeholder="例如：微博长图3等分">
+        <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+          <button class="btn-secondary" id="cancel-save-preset">取消</button>
+          <button class="btn-primary" id="confirm-save-preset">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast通知 -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JSZip库（CDN后备） -->
+  <script src="vendor/jszip.min.js" 
+          onerror="console.warn('JSZip CDN加载失败，将使用逐个下载模式')"></script>
+  <script src="app.js"></script>
+
+  <!-- 主题切换浮动按钮 -->
+  <button id="theme-toggle" class="btn-icon" onclick="toggleTheme()" title="切换亮/暗主题"
+    style="position:fixed;bottom:44px;left:12px;z-index:99;background:var(--bg-elevated);border:1px solid var(--border);width:32px;height:32px;border-radius:50%;font-size:14px">
+    🌙
+  </button>
+
+  <script>
+  // 浮动主题切换按钮逻辑
+  let _themeState = localStorage.getItem('isp_theme') || 'dark';
+  function toggleTheme() {
+    _themeState = _themeState === 'dark' ? 'light' : 'dark';
+    setTheme(_themeState);
+    document.getElementById('theme-toggle').textContent = _themeState === 'dark' ? '🌙' : '☀️';
+  }
+  // 同步初始图标
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('theme-toggle').textContent = _themeState === 'dark' ? '🌙' : '☀️';
+  });
+  </script>
+</body>
+</html>
