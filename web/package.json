@@ -1,0 +1,18 @@
+{
+  "name": "imageslicer-pro-web",
+  "version": "1.0.0",
+  "description": "ImageSlicer Pro - 纯 Web 版本（Vite 构建，可部署到 Vercel）",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
