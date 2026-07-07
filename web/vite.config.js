@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 
 // ImageSlicer Pro Web 版 Vite 配置
 export default defineConfig({
-  // 使用相对路径，便于部署到任意子路径 / 自定义域名
-  base: './',
+  // 绝对子路径：构建产物的资源引用自带 /image-slicer 前缀，
+  // 这样无论用户访问 apps.endril.com/image-slicer 还是 /image-slicer/ 都能正确加载，
+  // 不依赖末尾斜杠，也不依赖 Worker 重定向。改路径名时同步改这里即可。
+  base: '/image-slicer/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
