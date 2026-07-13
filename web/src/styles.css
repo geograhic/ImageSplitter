@@ -637,7 +637,7 @@ body {
   position: relative;
   flex-shrink: 0;
   display: inline-block;
-  touch-action: pan-x pan-y;
+  touch-action: none;
   box-shadow: var(--shadow-lg);
 }
 

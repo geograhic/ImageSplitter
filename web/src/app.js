@@ -2755,47 +2755,93 @@ bindEvents = function enhancedBindEvents() {
 };
 
 function bindPinchZoom() {
+  const wrap = DOM.canvasWrap;
+  const container = DOM.canvasContainer;
+  if (!wrap || !container) return;
+
+  let mode = null;        // 'pan' | 'pinch'
   let startDist = 0;
   let startZoom = 1;
-  let pinching = false;
+  let lastSingle = null;  // 单指上一帧坐标 {x,y}
+  let lastCenter = null;  // 双指上一帧中心 {x,y}
 
-  function pinchDist(touches) {
-    const dx = touches[0].pageX - touches[1].pageX;
-    const dy = touches[0].pageY - touches[1].pageY;
+  function pinchDist(t) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
+  function pinchMid(t) {
+    return {
+      x: (t[0].clientX + t[1].clientX) / 2,
+      y: (t[0].clientY + t[1].clientY) / 2
+    };
+  }
 
-  if (!DOM.canvasWrap) return;
-
-  DOM.canvasWrap.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      pinching = true;
+  wrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      mode = 'pan';
+      lastSingle = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastCenter = null;
+    } else if (e.touches.length === 2) {
+      mode = 'pinch';
       startDist = pinchDist(e.touches);
       startZoom = State.zoom;
+      lastCenter = pinchMid(e.touches);
     }
   }, { passive: false });
 
-  DOM.canvasWrap.addEventListener('touchmove', (e) => {
-    if (pinching && e.touches.length === 2) {
+  wrap.addEventListener('touchmove', (e) => {
+    if (mode === 'pan' && e.touches.length === 1) {
       e.preventDefault();
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      container.scrollLeft -= (x - lastSingle.x);
+      container.scrollTop  -= (y - lastSingle.y);
+      lastSingle = { x, y };
+    } else if (mode === 'pinch' && e.touches.length === 2) {
+      e.preventDefault();
+      const c = pinchMid(e.touches);
       const dist = pinchDist(e.touches);
-      if (startDist > 0) {
-        setZoom(startZoom * (dist / startDist));
+
+      // 双指整体平移：把双指中心的移动量同步到画布滚动
+      if (lastCenter) {
+        container.scrollLeft -= (c.x - lastCenter.x);
+        container.scrollTop  -= (c.y - lastCenter.y);
       }
+
+      // 缩放围绕双指中心：双指中心对应的图片内容保持不动（中心跟随）
+      if (startDist > 0) {
+        const oldZoom = State.zoom;
+        const oldScrollX = container.scrollLeft;
+        const oldScrollY = container.scrollTop;
+        const rect = container.getBoundingClientRect();
+        const vx = c.x - rect.left;
+        const vy = c.y - rect.top;
+        const c0x = vx + oldScrollX;
+        const c0y = vy + oldScrollY;
+
+        setZoom(startZoom * (dist / startDist));
+
+        const ratio = State.zoom / oldZoom;
+        container.scrollLeft = c0x * ratio - vx;
+        container.scrollTop  = c0y * ratio - vy;
+      }
+      lastCenter = c;
     }
   }, { passive: false });
 
-  DOM.canvasWrap.addEventListener('touchend', (e) => {
-    if (pinching && e.touches.length < 2) {
-      pinching = false;
-      startDist = 0;
+  function onEnd(e) {
+    if (e.touches.length === 0) {
+      mode = null; lastSingle = null; lastCenter = null;
+    } else if (e.touches.length === 1) {
+      // 双指松开一指 → 平滑切换为单指拖动，避免位置跳变
+      mode = 'pan';
+      lastSingle = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastCenter = null;
     }
-  });
-
-  DOM.canvasWrap.addEventListener('touchcancel', () => {
-    pinching = false;
-    startDist = 0;
+  }
+  wrap.addEventListener('touchend', onEnd);
+  wrap.addEventListener('touchcancel', () => {
+    mode = null; lastSingle = null; lastCenter = null;
   });
 }
 

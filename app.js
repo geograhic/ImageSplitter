@@ -2746,7 +2746,96 @@ const __baseBindEvents = bindEvents;
 bindEvents = function enhancedBindEvents() {
   __baseBindEvents();
   bindPreviewEnhancements();
+  bindPinchZoom();
 };
+
+function bindPinchZoom() {
+  const wrap = DOM.canvasWrap;
+  const container = DOM.canvasContainer;
+  if (!wrap || !container) return;
+
+  let mode = null;        // 'pan' | 'pinch'
+  let startDist = 0;
+  let startZoom = 1;
+  let lastSingle = null;  // 单指上一帧坐标 {x,y}
+  let lastCenter = null;  // 双指上一帧中心 {x,y}
+
+  function pinchDist(t) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function pinchMid(t) {
+    return {
+      x: (t[0].clientX + t[1].clientX) / 2,
+      y: (t[0].clientY + t[1].clientY) / 2
+    };
+  }
+
+  wrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      mode = 'pan';
+      lastSingle = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastCenter = null;
+    } else if (e.touches.length === 2) {
+      mode = 'pinch';
+      startDist = pinchDist(e.touches);
+      startZoom = State.zoom;
+      lastCenter = pinchMid(e.touches);
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', (e) => {
+    if (mode === 'pan' && e.touches.length === 1) {
+      e.preventDefault();
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      container.scrollLeft -= (x - lastSingle.x);
+      container.scrollTop  -= (y - lastSingle.y);
+      lastSingle = { x, y };
+    } else if (mode === 'pinch' && e.touches.length === 2) {
+      e.preventDefault();
+      const c = pinchMid(e.touches);
+      const dist = pinchDist(e.touches);
+
+      if (lastCenter) {
+        container.scrollLeft -= (c.x - lastCenter.x);
+        container.scrollTop  -= (c.y - lastCenter.y);
+      }
+
+      if (startDist > 0) {
+        const oldZoom = State.zoom;
+        const oldScrollX = container.scrollLeft;
+        const oldScrollY = container.scrollTop;
+        const rect = container.getBoundingClientRect();
+        const vx = c.x - rect.left;
+        const vy = c.y - rect.top;
+        const c0x = vx + oldScrollX;
+        const c0y = vy + oldScrollY;
+
+        setZoom(startZoom * (dist / startDist));
+
+        const ratio = State.zoom / oldZoom;
+        container.scrollLeft = c0x * ratio - vx;
+        container.scrollTop  = c0y * ratio - vy;
+      }
+      lastCenter = c;
+    }
+  }, { passive: false });
+
+  function onEnd(e) {
+    if (e.touches.length === 0) {
+      mode = null; lastSingle = null; lastCenter = null;
+    } else if (e.touches.length === 1) {
+      mode = 'pan';
+      lastSingle = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastCenter = null;
+    }
+  }
+  wrap.addEventListener('touchend', onEnd);
+  wrap.addEventListener('touchcancel', () => {
+    mode = null; lastSingle = null; lastCenter = null;
+  });
+}
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

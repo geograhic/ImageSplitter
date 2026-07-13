@@ -84,6 +84,7 @@ body {
   background: var(--bg-base);
   color: var(--text-primary);
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -102,7 +103,7 @@ body {
   padding: 0 16px;
   gap: 16px;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: 160;
   backdrop-filter: blur(20px);
 }
 
@@ -635,6 +636,7 @@ body {
   position: relative;
   flex-shrink: 0;
   display: inline-block;
+  touch-action: none;
   box-shadow: var(--shadow-lg);
 }
 
@@ -1316,14 +1318,156 @@ body {
 /* --- 工具提示 --- */
 [title] { position: relative; }
 
-/* --- 工具面板 resize（响应式） --- */
-@media (max-width: 1200px) {
-  :root { --sidebar-right-width: 200px; }
+/* ============================================================
+   响应式适配：桌面 3 栏 → 平板（右栏抽屉）→ 手机（双抽屉 + 菜单）
+   ============================================================ */
+
+/* 移动端切换按钮：默认隐藏，按断点显示 */
+.toggle-panel { display: none; }
+
+/* 抽屉激活态（高亮当前打开的切换按钮） */
+.toggle-panel.active {
+  background: var(--primary-dim);
+  color: var(--primary-light);
+  border-radius: var(--radius-sm);
 }
 
-@media (max-width: 900px) {
-  .sidebar-right { display: none; }
-  :root { --sidebar-width: 220px; }
+/* 抽屉遮罩：默认透明不可点，.show 时生效 */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 140;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+.drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+
+/* 顶部导航下拉（手机：替代内联导航） */
+.nav-dropdown {
+  position: fixed;
+  top: var(--topbar-height);
+  left: 0;
+  right: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 155;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 6px;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1), opacity 0.22s ease;
+}
+.nav-dropdown.show { transform: translateY(0); opacity: 1; pointer-events: all; }
+.nav-dropdown-item {
+  padding: 13px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+.nav-dropdown-item:active { background: var(--primary-dim); color: var(--primary-light); }
+.nav-dropdown-item.active { background: var(--primary-dim); border-color: var(--primary); color: var(--primary-light); }
+
+/* 桌面收窄：1200 以下稍微压缩侧栏 */
+@media (max-width: 1200px) {
+  :root { --sidebar-right-width: 210px; --sidebar-width: 240px; }
+}
+
+/* 平板（≤1023）：右侧预览面板变为滑出抽屉，顶栏出现“预览”按钮 */
+@media (max-width: 1023px) {
+  .sidebar-right {
+    position: fixed;
+    top: var(--topbar-height);
+    right: 0;
+    bottom: 0;
+    width: min(var(--sidebar-right-width), 86vw);
+    z-index: 150;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    box-shadow: var(--shadow-float);
+    border-left: 1px solid var(--border);
+  }
+  .sidebar-right.open { transform: translateX(0); }
+  #btn-toggle-right { display: inline-flex; }
+}
+
+/* 手机（≤640）：左栏也变抽屉，导航收起为菜单，“工具”按钮出现 */
+@media (max-width: 640px) {
+  :root {
+    --sidebar-width: 300px;
+    --topbar-height: 50px;
+  }
+
+  .topnav { display: none; }
+  #btn-nav-toggle { display: inline-flex; }
+  #btn-toggle-left { display: inline-flex; }
+
+  .sidebar-left {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    bottom: 0;
+    width: min(var(--sidebar-width), 88vw);
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    box-shadow: var(--shadow-float);
+    border-right: 1px solid var(--border);
+  }
+  .sidebar-left.open { transform: translateX(0); }
+
+  /* 编辑工具栏横向滚动，避免按钮被挤压换行 */
+  .editor-toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .editor-toolbar::-webkit-scrollbar { display: none; }
+  .split-info { display: none; }
+
+  /* 状态栏快捷键提示在小屏隐藏 */
+  .status-right { display: none; }
+
+  /* 画布与预览留白收紧 */
+  .canvas-container { padding: 10px; }
+  .preview-viewport { padding: 6px; }
+  .upload-zone { padding: 20px; }
+  .upload-content h3 { font-size: 18px; }
+  .upload-content p { font-size: 12px; }
+
+  /* 帮助抽屉 / 模态框全屏化（底部弹出） */
+  .help-drawer { width: 100%; }
+  .modal-overlay { align-items: flex-end; }
+  .modal { width: 100% !important; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 92vh; }
+  .toast-container { left: 12px; right: 12px; }
+  .toast { max-width: none; }
+  #tab-overlay > div { padding: 16px !important; }
+  .upload-actions { flex-wrap: wrap; }
+  .upload-actions .btn-lg { flex: 1; }
+
+  /* 极窄屏：隐藏 logo 文字、图片信息、撤销重做，仅留必要控件 */
+  @media (max-width: 420px) {
+    .logo-text { display: none; }
+    .toolbar-left .img-info { display: none; }
+    #btn-undo, #btn-redo, .divider-v { display: none; }
+  }
+}
+
+/* 触屏设备：增大可点区域，提升操作友好度 */
+@media (hover: none) and (pointer: coarse) {
+  .mode-card { padding: 14px 8px; }
+  .op-btn, .preset-item { padding: 11px 8px; }
+  .nav-item { padding: 8px 12px; }
+  .num-btn { width: 36px; height: 36px; }
 }
 
 /* --- 动画工具类 --- */
