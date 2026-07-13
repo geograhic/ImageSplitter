@@ -66,6 +66,64 @@ const BUILT_IN_PRESETS = {
   scroll: { mode:'fixed-height', fixedSize:1200, outputFormat:'jpeg', outputQuality:0.88, namingRule:'{name}_漫画_{index}', hint:'连载漫画1200px' },
 };
 
+const MAX_CACHE_PX = 8192;
+const MAX_CACHE_AREA = 24_000_000;
+
+// 渲染节流：用 requestAnimationFrame 合并多次 renderCanvas/renderPreview 调用
+let __renderCanvasPending = false;
+let __renderPreviewPending = false;
+let __renderCanvasImpl = null;
+let __renderPreviewImpl = null;
+
+function scheduleRenderCanvas() {
+  if (!__renderCanvasImpl || __renderCanvasPending) return;
+  __renderCanvasPending = true;
+  requestAnimationFrame(() => {
+    __renderCanvasPending = false;
+    __renderCanvasImpl();
+  });
+}
+
+function scheduleRenderPreview() {
+  if (!__renderPreviewImpl || __renderPreviewPending) return;
+  __renderPreviewPending = true;
+  requestAnimationFrame(() => {
+    __renderPreviewPending = false;
+    __renderPreviewImpl();
+  });
+}
+
+// 为图片建立降采样缓存，避免每帧都对超长原图做 drawImage
+function buildImageCache(entry) {
+  if (!entry || entry.cacheCanvas) return;
+  const w = entry.width, h = entry.height;
+  const scale = Math.min(
+    1,
+    MAX_CACHE_PX / w,
+    MAX_CACHE_PX / h,
+    Math.sqrt(MAX_CACHE_AREA / Math.max(1, w * h))
+  );
+  const cacheW = Math.max(1, Math.round(w * scale));
+  const cacheH = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = cacheW;
+  canvas.height = cacheH;
+  const ctx = getCtx(canvas);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(entry.img, 0, 0, cacheW, cacheH);
+  entry.cacheCanvas = canvas;
+  entry.cacheScale = scale;
+}
+
+function getImageSource(entry) {
+  return entry.cacheCanvas || entry.img;
+}
+
+function getImageSourceScale(entry) {
+  return entry.cacheScale || 1;
+}
+
 // =============================================
 // DOM 引用
 // =============================================
@@ -398,6 +456,9 @@ function loadImages(files) {
           setStatus(`已加载 ${State.images.length} 张图片`);
           showToast(`成功加载 ${filtered.length} 张图片`, 'success');
         }
+
+        // 异步构建缓存，避免阻塞上传后的首帧渲染
+        setTimeout(() => buildImageCache(entry), 0);
       };
       img.onerror = () => {
         showToast(`无法解析图片：${file.name}`, 'error');
@@ -462,9 +523,9 @@ function renderCanvas() {
 
   // 旋转后图片实际绘制尺寸要用原始宽高
   if (isRotated90) {
-    ctx.drawImage(entry.img, -displayH / 2, -displayW / 2, displayH, displayW);
+    ctx.drawImage(getImageSource(entry), -displayH / 2, -displayW / 2, displayH, displayW);
   } else {
-    ctx.drawImage(entry.img, -displayW / 2, -displayH / 2, displayW, displayH);
+    ctx.drawImage(getImageSource(entry), -displayW / 2, -displayH / 2, displayW, displayH);
   }
   ctx.restore();
 
@@ -843,6 +904,9 @@ function renderPreview() {
 
     const isExcluded = State.excludedPieces.has(origIdx);
 
+    const srcImg = getImageSource(entry);
+    const sScale = getImageSourceScale(entry);
+
     // 生成缩略图
     const thumbSize = 200;
     const thumbCanvas = document.createElement('canvas');
@@ -850,18 +914,19 @@ function renderPreview() {
     thumbCanvas.width = Math.max(1, Math.round(rect.w * scale));
     thumbCanvas.height = Math.max(1, Math.round(rect.h * scale));
     const tCtx = getCtx(thumbCanvas);
+    tCtx.imageSmoothingEnabled = false;
 
     if (border > 0) {
       tCtx.fillStyle = borderColor;
       tCtx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height);
       const bScl = border * scale;
-      tCtx.drawImage(entry.img,
-        rect.x, rect.y, rect.w, rect.h,
+      tCtx.drawImage(srcImg,
+        rect.x * sScale, rect.y * sScale, rect.w * sScale, rect.h * sScale,
         bScl, bScl,
         thumbCanvas.width - bScl * 2, thumbCanvas.height - bScl * 2
       );
     } else {
-      tCtx.drawImage(entry.img, rect.x, rect.y, rect.w, rect.h,
+      tCtx.drawImage(srcImg, rect.x * sScale, rect.y * sScale, rect.w * sScale, rect.h * sScale,
         0, 0, thumbCanvas.width, thumbCanvas.height);
     }
 
@@ -2518,13 +2583,16 @@ function drawSliceToCanvas(canvas, entry, rect, zoom) {
   canvas.style.height = displayH + 'px';
 
   const ctx = getCtx(canvas);
+  ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(renderScale * zoom, 0, 0, renderScale * zoom, 0, 0);
   if (border > 0) {
     ctx.fillStyle = State.borderColor;
     ctx.fillRect(0, 0, outW, outH);
   }
-  ctx.drawImage(entry.img, rect.x, rect.y, rect.w, rect.h, border, border, rect.w, rect.h);
+  const srcImg = getImageSource(entry);
+  const sScale = getImageSourceScale(entry);
+  ctx.drawImage(srcImg, rect.x * sScale, rect.y * sScale, rect.w * sScale, rect.h * sScale, border, border, rect.w, rect.h);
   if (State.addWatermark && State.watermarkText) drawWatermark(ctx, outW, outH);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
@@ -2589,9 +2657,9 @@ renderCanvas = function() {
   if (State.flipH) ctx.scale(-1, 1);
   if (State.flipV) ctx.scale(1, -1);
   if (isRotated90) {
-    ctx.drawImage(entry.img, -displayH / 2, -displayW / 2, displayH, displayW);
+    ctx.drawImage(getImageSource(entry), -displayH / 2, -displayW / 2, displayH, displayW);
   } else {
-    ctx.drawImage(entry.img, -displayW / 2, -displayH / 2, displayW, displayH);
+    ctx.drawImage(getImageSource(entry), -displayW / 2, -displayH / 2, displayW, displayH);
   }
   ctx.restore();
   drawSplitHighlight(ctx, displayW, displayH);
@@ -2850,6 +2918,12 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// 用 requestAnimationFrame 节流包装 renderCanvas/renderPreview，避免连续事件触发每帧重绘
+__renderCanvasImpl = renderCanvas;
+__renderPreviewImpl = renderPreview;
+renderCanvas = scheduleRenderCanvas;
+renderPreview = scheduleRenderPreview;
 
 // =============================================
 // Web 版改造：暴露全局函数供 index.html 中的内联 onclick/onchange 调用

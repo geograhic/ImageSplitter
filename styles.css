@@ -643,6 +643,7 @@ body {
 #main-canvas {
   display: block;
   max-width: none;
+  image-rendering: pixelated;
 }
 
 /* --- 分割线层 --- */
