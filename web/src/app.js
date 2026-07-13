@@ -1961,14 +1961,17 @@ document.addEventListener('paste', (e) => {
 });
 
 // =============================================
-// 滚轮缩放
+// 滚轮缩放（画布区域直接滚轮即可缩放，无需按住 Ctrl）
 // =============================================
 document.addEventListener('wheel', (e) => {
-  if ((e.ctrlKey || e.metaKey) && DOM.canvasContainer && DOM.canvasContainer.contains(e.target)) {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    setZoom(State.zoom * delta);
-  }
+  const inCanvas = DOM.canvasWrap && DOM.canvasWrap.contains(e.target)
+                || DOM.canvasContainer && DOM.canvasContainer.contains(e.target);
+  if (!inCanvas) return;
+  // 预览窗口仍用 Ctrl/Cmd+滚轮，避免冲突
+  if (DOM.previewViewport && DOM.previewViewport.contains(e.target) && !e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  setZoom(State.zoom * delta);
 }, { passive: false });
 
 // =============================================
