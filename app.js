@@ -1012,13 +1012,13 @@ function openPreviewModal(origIdx) {
 
   const { canvas, ctx, border, fullW, fullH, scale } = createExportCanvas(rect);
   ctx.imageSmoothingEnabled = false;
-  const srcImg = getImageSource(entry);
-  const sScale = getImageSourceScale(entry);
+  // 预览弹窗使用原图，避免使用主编辑器性能缓存导致马赛克
+  const srcImg = entry.img;
   if (border > 0) {
     ctx.fillStyle = State.borderColor;
     ctx.fillRect(0, 0, fullW, fullH);
   }
-  ctx.drawImage(srcImg, rect.x * sScale, rect.y * sScale, rect.w * sScale, rect.h * sScale, border, border, rect.w, rect.h);
+  ctx.drawImage(srcImg, rect.x, rect.y, rect.w, rect.h, border, border, rect.w, rect.h);
 
   DOM.previewModalImg.src = canvas.toDataURL('image/png');
   DOM.previewModalImg.style.width = canvas.width + 'px';
