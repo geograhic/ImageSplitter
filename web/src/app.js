@@ -171,6 +171,8 @@ function initDOM() {
   DOM.guidesLayer = $('guides-layer');
   DOM.canvasContainer = $('canvas-container');
   DOM.canvasWrap = $('canvas-wrap');
+  DOM.cropOverlay = $('crop-overlay');
+  DOM.cropBox = $('crop-box');
   DOM.previewList = $('preview-list');
   DOM.previewViewer = $('preview-viewer');
   DOM.previewViewport = $('preview-viewport');
@@ -541,6 +543,8 @@ function renderCanvas() {
 
   // 高亮分割区域
   drawSplitHighlight(ctx, displayW, displayH);
+
+  if (State.cropActive) positionCropBox();
 }
 
 function drawSplitHighlight(ctx, w, h) {
@@ -1109,6 +1113,7 @@ function renderTabs() {
 
     tab.addEventListener('click', () => {
       State.currentIdx = i;
+      exitCropMode();
       State.guides = [];
       State.excludedPieces.clear();
       State.pieceOrder = [];
@@ -1552,6 +1557,213 @@ function flipVertical() {
   renderCanvas();
   renderGuides();
   renderPreview();
+}
+
+// =============================================
+// 预裁剪（crop）功能
+// =============================================
+// 将当前旋转/翻转固化到图像像素，使后续可用简单矩形裁剪。
+// 无变换时直接返回；极端长图按 8192 上限降采样，与缓存/导出保持一致避免爆内存。
+function bakeOrientation(entry) {
+  const needs = State.rotation || State.flipH || State.flipV;
+  if (!needs) return;
+  const w0 = entry.width, h0 = entry.height;
+  const isRot = State.rotation === 90 || State.rotation === 270;
+  const outW = isRot ? h0 : w0;
+  const outH = isRot ? w0 : h0;
+  const MAX = 8192;
+  const longSide = Math.max(outW, outH);
+  const cap = longSide > MAX ? MAX / longSide : 1;
+  const cw = Math.max(1, Math.round(outW * cap));
+  const ch = Math.max(1, Math.round(outH * cap));
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const ctx = getCtx(c);
+  ctx.translate(cw / 2, ch / 2);
+  if (State.rotation) ctx.rotate(State.rotation * Math.PI / 180);
+  if (State.flipH) ctx.scale(-1, 1);
+  if (State.flipV) ctx.scale(1, -1);
+  ctx.drawImage(entry.img, -cw / 2, -ch / 2, cw, ch);
+  entry.img = c;
+  entry.width = cw;
+  entry.height = ch;
+  entry.cacheCanvas = null;
+  entry.cacheScale = 1;
+  buildImageCache(entry);
+  State.rotation = 0;
+  State.flipH = false;
+  State.flipV = false;
+}
+
+// 计算画布相对裁剪遮罩的坐标（canvas-wrap == canvas，故通常 x/y=0）
+function cropCanvasRelOverlay() {
+  const crect = DOM.mainCanvas.getBoundingClientRect();
+  const orect = DOM.cropOverlay.getBoundingClientRect();
+  return { x: crect.left - orect.left, y: crect.top - orect.top, w: crect.width, h: crect.height };
+}
+
+// 依据存储的比例（占画布的比例）定位裁剪选框，缩放/窗口变化时保持对齐
+function positionCropBox() {
+  if (!State.cropActive) return;
+  const r = cropCanvasRelOverlay();
+  const f = State.cropRect || { fx: 0.1, fy: 0.1, fw: 0.8, fh: 0.8 };
+  const box = DOM.cropBox;
+  box.style.left = (r.x + f.fx * r.w) + 'px';
+  box.style.top = (r.y + f.fy * r.h) + 'px';
+  box.style.width = (f.fw * r.w) + 'px';
+  box.style.height = (f.fh * r.h) + 'px';
+}
+
+function syncCropButton() {
+  const btn = $('btn-crop-mode');
+  if (!btn) return;
+  if (State.cropActive) {
+    btn.innerHTML = '✓ 应用裁剪';
+    btn.classList.add('btn-primary');
+    btn.classList.remove('btn-ghost');
+  } else {
+    btn.innerHTML = '✂ 预裁剪';
+    btn.classList.add('btn-ghost');
+    btn.classList.remove('btn-primary');
+  }
+}
+
+function enterCropMode() {
+  const entry = State.images[State.currentIdx];
+  if (!entry) return;
+  exitCropMode();
+  State.cropActive = true;
+  State.cropRect = { fx: 0.1, fy: 0.1, fw: 0.8, fh: 0.8 };
+  DOM.cropOverlay.classList.remove('hidden');
+  positionCropBox();
+  syncCropButton();
+  showToast('拖动选框调整裁剪范围，再次点击「应用裁剪」确认，Esc 取消', 'info', 4000);
+}
+
+function exitCropMode() {
+  if (!State.cropActive && (!DOM.cropOverlay || DOM.cropOverlay.classList.contains('hidden'))) return;
+  State.cropActive = false;
+  State.cropRect = null;
+  if (DOM.cropOverlay) DOM.cropOverlay.classList.add('hidden');
+  syncCropButton();
+}
+
+function applyCrop() {
+  const entry = State.images[State.currentIdx];
+  if (!entry || !State.cropActive) return;
+  bakeOrientation(entry); // 先固化旋转/翻转
+  const crect = DOM.mainCanvas.getBoundingClientRect();
+  const brect = DOM.cropBox.getBoundingClientRect();
+  let x0 = (brect.left - crect.left) / crect.width * entry.width;
+  let y0 = (brect.top - crect.top) / crect.height * entry.height;
+  let cw = (brect.width / crect.width) * entry.width;
+  let ch = (brect.height / crect.height) * entry.height;
+  x0 = Math.max(0, Math.min(entry.width - 1, Math.round(x0)));
+  y0 = Math.max(0, Math.min(entry.height - 1, Math.round(y0)));
+  cw = Math.max(1, Math.round(cw));
+  ch = Math.max(1, Math.round(ch));
+  cw = Math.min(cw, entry.width - x0);
+  ch = Math.min(ch, entry.height - y0);
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  const octx = getCtx(out);
+  octx.drawImage(entry.img, x0, y0, cw, ch, 0, 0, cw, ch);
+  entry.img = out;
+  entry.width = cw;
+  entry.height = ch;
+  entry.cacheCanvas = null;
+  entry.cacheScale = 1;
+  buildImageCache(entry);
+  State.cropActive = false;
+  State.cropRect = null;
+  State.zoom = 1;
+  DOM.cropOverlay.classList.add('hidden');
+  syncCropButton();
+  updateInfo();
+  renderAll();
+  showToast(`已裁剪为 ${cw} × ${ch} px`, 'success', 2500);
+}
+
+let __cropDrag = null;
+function initCropInteractions() {
+  const overlay = DOM.cropOverlay;
+  const box = DOM.cropBox;
+  if (!overlay || !box) return;
+
+  const onDown = (e, mode) => {
+    if (!State.cropActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = cropCanvasRelOverlay();
+    const b = box.getBoundingClientRect();
+    const o = overlay.getBoundingClientRect();
+    __cropDrag = {
+      mode,
+      sx: e.clientX, sy: e.clientY,
+      fx: (b.left - o.left - r.x) / r.w,
+      fy: (b.top - o.top - r.y) / r.h,
+      fw: b.width / r.w,
+      fh: b.height / r.h,
+      r
+    };
+    try { box.setPointerCapture(e.pointerId); } catch (_) {}
+  };
+
+  // 点击遮罩空白处：将选框中心移动到点击位置
+  overlay.addEventListener('pointerdown', (e) => {
+    if (!State.cropActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = cropCanvasRelOverlay();
+    const o = overlay.getBoundingClientRect();
+    const px = (e.clientX - o.left - r.x) / r.w;
+    const py = (e.clientY - o.top - r.y) / r.h;
+    const f = State.cropRect || { fx: 0.1, fy: 0.1, fw: 0.8, fh: 0.8 };
+    let nfx = px - f.fw / 2;
+    let nfy = py - f.fh / 2;
+    nfx = Math.max(0, Math.min(1 - f.fw, nfx));
+    nfy = Math.max(0, Math.min(1 - f.fh, nfy));
+    State.cropRect = { fx: nfx, fy: nfy, fw: f.fw, fh: f.fh };
+    positionCropBox();
+  });
+  // 阻止画布 pan/pinch 干扰裁剪拖拽
+  overlay.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+  overlay.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
+
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target.classList.contains('crop-handle')) return; // 交给 handle 处理
+    onDown(e, 'move');
+  });
+  box.querySelectorAll('.crop-handle').forEach(h => {
+    h.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      const dir = h.className.replace('crop-handle', '').replace(/\s+/g, '').slice(0, 2); // nw/ne/sw/se
+      onDown(e, 'resize-' + dir);
+    });
+  });
+
+  box.addEventListener('pointermove', (e) => {
+    if (!__cropDrag) return;
+    const r = __cropDrag.r; // 拖拽期间画布尺寸不变
+    const dx = (e.clientX - __cropDrag.sx) / r.w;
+    const dy = (e.clientY - __cropDrag.sy) / r.h;
+    let { fx, fy, fw, fh } = __cropDrag;
+    const MIN = 0.02;
+    if (__cropDrag.mode === 'move') {
+      fx = Math.max(0, Math.min(1 - fw, __cropDrag.fx + dx));
+      fy = Math.max(0, Math.min(1 - fh, __cropDrag.fy + dy));
+    } else {
+      const m = __cropDrag.mode;
+      if (m.indexOf('e') >= 0) fw = Math.max(MIN, Math.min(1 - fx, __cropDrag.fw + dx));
+      if (m.indexOf('s') >= 0) fh = Math.max(MIN, Math.min(1 - fy, __cropDrag.fh + dy));
+      if (m.indexOf('w') >= 0) { const nfx = Math.max(0, Math.min(fx + fw - MIN, __cropDrag.fx + dx)); fw = fx + fw - nfx; fx = nfx; }
+      if (m.indexOf('n') >= 0) { const nfy = Math.max(0, Math.min(fy + fh - MIN, __cropDrag.fy + dy)); fh = fy + fh - nfy; fy = nfy; }
+    }
+    State.cropRect = { fx, fy, fw, fh };
+    positionCropBox();
+  });
+  box.addEventListener('pointerup', () => { __cropDrag = null; });
+  box.addEventListener('pointercancel', () => { __cropDrag = null; });
 }
 
 // =============================================
@@ -2058,6 +2270,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === '-') setZoom(State.zoom / 1.2);
     if (e.key === '0') { State.zoom = 1; setZoom(1); }
     if (e.key === 'Escape') {
+      if (State.cropActive) { e.preventDefault(); exitCropMode(); return; }
       closeHelp();
       $('preset-modal-overlay').classList.add('hidden');
       $('save-preset-overlay').classList.add('hidden');
@@ -2368,9 +2581,19 @@ function bindEvents() {
   $('btn-rotate').addEventListener('click', rotateImage);
   $('btn-flip-h').addEventListener('click', flipHorizontal);
   $('btn-flip-v').addEventListener('click', flipVertical);
+
+  // 预裁剪
+  $('btn-crop-mode').addEventListener('click', () => {
+    const entry = State.images[State.currentIdx];
+    if (!entry) return;
+    if (State.cropActive) applyCrop();
+    else enterCropMode();
+  });
+  initCropInteractions();
   $('btn-clear-image').addEventListener('click', () => {
     if (State.images.length === 0) return;
     if (!confirm('确定要清除所有已载入的图片吗？')) return;
+    exitCropMode();
     State.images = [];
     State.currentIdx = 0;
     State.guides = [];
