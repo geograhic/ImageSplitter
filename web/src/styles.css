@@ -1780,7 +1780,7 @@ body {
     box-shadow: var(--shadow-float);
     border-left: 1px solid var(--border);
   }
-  .sidebar-right.open { transform: translateX(0); }
+  .sidebar-right.open { transform: translateX(0); display: flex; }
   #btn-toggle-right { display: inline-flex; }
 }
 
