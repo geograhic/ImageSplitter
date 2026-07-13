@@ -9,6 +9,7 @@
   <!-- 顶部导航栏 -->
   <header class="topbar">
     <div class="topbar-left">
+      <button class="btn-icon toggle-panel" id="btn-nav-toggle" title="菜单 / 导航" aria-label="打开菜单">☰</button>
       <div class="logo">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
           <rect x="2" y="2" width="24" height="24" rx="4" fill="url(#grad1)"/>
@@ -32,6 +33,8 @@
       </nav>
     </div>
     <div class="topbar-right">
+      <button class="btn-ghost btn-sm toggle-panel" id="btn-toggle-left" title="显示/隐藏工具面板">工具</button>
+      <button class="btn-ghost btn-sm toggle-panel" id="btn-toggle-right" title="显示/隐藏预览面板">预览</button>
       <button class="btn-icon" id="btn-undo" title="撤销 (Ctrl+Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
       </button>
@@ -45,6 +48,17 @@
       </button>
     </div>
   </header>
+
+  <!-- 移动端导航下拉菜单 -->
+  <nav class="nav-dropdown" id="nav-dropdown">
+    <a href="#" class="nav-dropdown-item" data-tab="workspace">工作台</a>
+    <a href="#" class="nav-dropdown-item" data-tab="batch">批量处理</a>
+    <a href="#" class="nav-dropdown-item" data-tab="settings">设置</a>
+    <a href="#" class="nav-dropdown-item" data-tab="help">帮助</a>
+  </nav>
+
+  <!-- 抽屉遮罩 -->
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
 
   <!-- 主体布局 -->
   <div class="app-body">
@@ -539,6 +553,78 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('theme-toggle').textContent = _themeState === 'dark' ? '🌙' : '☀️';
   });
+  </script>
+
+  <script>
+  /* 响应式：移动端抽屉与导航菜单控制 */
+  (function () {
+    var left = document.getElementById('sidebar-left');
+    var right = document.getElementById('sidebar-right');
+    var backdrop = document.getElementById('drawer-backdrop');
+    var navToggle = document.getElementById('btn-nav-toggle');
+    var navDropdown = document.getElementById('nav-dropdown');
+    var btnLeft = document.getElementById('btn-toggle-left');
+    var btnRight = document.getElementById('btn-toggle-right');
+
+    function showBackdrop() { backdrop.classList.add('show'); }
+    function hideBackdrop() { backdrop.classList.remove('show'); }
+
+    function closeAll() {
+      left.classList.remove('open');
+      right.classList.remove('open');
+      navDropdown.classList.remove('show');
+      btnLeft.classList.remove('active');
+      btnRight.classList.remove('active');
+      navToggle.classList.remove('active');
+      hideBackdrop();
+    }
+
+    function openSidebar(side, btn) {
+      var el = side === 'left' ? left : right;
+      var isOpen = el.classList.contains('open');
+      left.classList.remove('open');
+      right.classList.remove('open');
+      navDropdown.classList.remove('show');
+      btnLeft.classList.remove('active');
+      btnRight.classList.remove('active');
+      navToggle.classList.remove('active');
+      if (isOpen) { hideBackdrop(); return; }
+      el.classList.add('open');
+      btn.classList.add('active');
+      showBackdrop();
+    }
+
+    btnLeft.addEventListener('click', function (e) { e.stopPropagation(); openSidebar('left', btnLeft); });
+    btnRight.addEventListener('click', function (e) { e.stopPropagation(); openSidebar('right', btnRight); });
+
+    navToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willShow = !navDropdown.classList.contains('show');
+      closeAll();
+      if (willShow) {
+        var active = document.querySelector('.nav-item.active');
+        var cur = active ? active.dataset.tab : 'workspace';
+        navDropdown.querySelectorAll('.nav-dropdown-item').forEach(function (it) {
+          it.classList.toggle('active', it.dataset.tab === cur);
+        });
+        navDropdown.classList.add('show');
+        navToggle.classList.add('active');
+      }
+    });
+
+    navDropdown.querySelectorAll('.nav-dropdown-item').forEach(function (item) {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        var tab = item.dataset.tab;
+        if (typeof switchTab === 'function') switchTab(tab);
+        closeAll();
+      });
+    });
+
+    backdrop.addEventListener('click', closeAll);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 1023) closeAll(); });
+  })();
   </script>
 </body>
 </html>
