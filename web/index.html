@@ -457,7 +457,7 @@
           片段操作
           <button class="help-btn" data-help="piece-ops">?</button>
         </div>
-        <div class="ops-hint">点击预览中的片段可进行单独操作</div>
+        <div class="ops-hint">点击预览图放大查看，点击底部信息选中片段</div>
         <div class="ops-grid" id="ops-grid">
           <button class="op-btn" id="op-download-single" disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -526,6 +526,20 @@
           <button class="btn-secondary" id="cancel-save-preset">取消</button>
           <button class="btn-primary" id="confirm-save-preset">保存</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 预览大图弹窗 -->
+  <div class="preview-modal hidden" id="preview-modal" role="dialog" aria-modal="true">
+    <div class="preview-modal-backdrop" id="preview-modal-backdrop"></div>
+    <div class="preview-modal-content">
+      <div class="preview-modal-header">
+        <div class="preview-modal-title" id="preview-modal-title">片段预览</div>
+        <button class="preview-modal-close" id="preview-modal-close" aria-label="关闭">×</button>
+      </div>
+      <div class="preview-modal-body" id="preview-modal-body">
+        <img id="preview-modal-img" alt="片段大图预览" />
       </div>
     </div>
   </div>

@@ -150,6 +150,11 @@ const DOM = {
   toastContainer: null,
   workspace: null,
   appBody: null,
+  previewModal: null,
+  previewModalBackdrop: null,
+  previewModalImg: null,
+  previewModalTitle: null,
+  previewModalClose: null,
 };
 
 function initDOM() {
@@ -180,6 +185,11 @@ function initDOM() {
   DOM.toastContainer = $('toast-container');
   DOM.workspace = $('workspace');
   DOM.appBody = document.querySelector('.app-body');
+  DOM.previewModal = $('preview-modal');
+  DOM.previewModalBackdrop = $('preview-modal-backdrop');
+  DOM.previewModalImg = $('preview-modal-img');
+  DOM.previewModalTitle = $('preview-modal-title');
+  DOM.previewModalClose = $('preview-modal-close');
 }
 
 // =============================================
@@ -943,6 +953,18 @@ function renderPreview() {
     item.appendChild(img);
     item.appendChild(footer);
 
+    img.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPreviewModal(origIdx);
+    });
+
+    footer.addEventListener('click', (e) => {
+      e.stopPropagation();
+      State.selectedPiece = origIdx;
+      renderPreview();
+      updatePieceOps();
+    });
+
     item.addEventListener('click', () => {
       State.selectedPiece = origIdx;
       renderPreview();
@@ -970,6 +992,54 @@ function updateStats(rects) {
     $('stat-origsize').textContent = `${entry.width}×${entry.height}`;
     $('stat-filesize').textContent = formatBytes(entry.fileSize);
   }
+}
+
+function openPreviewModal(origIdx) {
+  const entry = State.images[State.currentIdx];
+  if (!entry) return;
+  const rects = generateSlices();
+  const rect = rects[origIdx];
+  if (!rect) return;
+
+  State.selectedPiece = origIdx;
+  renderPreview();
+  updatePieceOps();
+
+  if (!DOM.previewModal || !DOM.previewModalImg) return;
+
+  const displayIdx = State.pieceOrder.indexOf(origIdx);
+  const labelIdx = (displayIdx >= 0 ? displayIdx : origIdx) + State.indexStart;
+
+  const { canvas, ctx, border, fullW, fullH, scale } = createExportCanvas(rect);
+  ctx.imageSmoothingEnabled = false;
+  const srcImg = getImageSource(entry);
+  const sScale = getImageSourceScale(entry);
+  if (border > 0) {
+    ctx.fillStyle = State.borderColor;
+    ctx.fillRect(0, 0, fullW, fullH);
+  }
+  ctx.drawImage(srcImg, rect.x * sScale, rect.y * sScale, rect.w * sScale, rect.h * sScale, border, border, rect.w, rect.h);
+
+  DOM.previewModalImg.src = canvas.toDataURL('image/png');
+  DOM.previewModalImg.style.width = canvas.width + 'px';
+  DOM.previewModalImg.style.height = canvas.height + 'px';
+  DOM.previewModalTitle.textContent = `#${labelIdx} · ${rect.w}×${rect.h}${scale < 1 ? ' · 预览已缩放' : ''}`;
+
+  DOM.previewModal.classList.remove('hidden');
+}
+
+function closePreviewModal() {
+  DOM.previewModal?.classList.add('hidden');
+}
+
+function initPreviewModal() {
+  DOM.previewModalBackdrop?.addEventListener('click', closePreviewModal);
+  DOM.previewModalClose?.addEventListener('click', closePreviewModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && DOM.previewModal && !DOM.previewModal.classList.contains('hidden')) {
+      closePreviewModal();
+    }
+  });
 }
 
 function updatePieceOps() {
@@ -2509,6 +2579,9 @@ function init() {
 
   // 绑定事件
   bindEvents();
+
+  // 初始化预览大图弹窗
+  initPreviewModal();
 
   // 恢复自定义预设
   renderPresetList();
