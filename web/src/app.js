@@ -1024,6 +1024,27 @@ function updateInfo() {
 // =============================================
 // 核心导出功能
 // =============================================
+// 创建导出画布：自动按浏览器画布上限（约 8192px / 2400 万像素，移动端 Safari 也安全）
+// 缩放，避免因超长/超大切片超过画布尺寸限制导致 drawImage 静默失败、导出空白。
+function createExportCanvas(rect) {
+  const border = State.addBorder ? State.borderSize : 0;
+  const fullW = rect.w + border * 2;
+  const fullH = rect.h + border * 2;
+  const MAX_DIM = 8192;
+  const MAX_PIXELS = 24000000;
+  const scale = Math.min(1,
+    MAX_DIM / fullW,
+    MAX_DIM / fullH,
+    Math.sqrt(MAX_PIXELS / Math.max(1, fullW * fullH))
+  );
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(fullW * scale));
+  canvas.height = Math.max(1, Math.round(fullH * scale));
+  const ctx = getCtx(canvas);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  return { canvas, ctx, border, fullW, fullH, scale };
+}
+
 async function exportAll() {
   const entry = State.images[State.currentIdx];
   if (!entry) { showToast('请先上传图片', 'warning'); return; }
@@ -1048,18 +1069,16 @@ async function exportAll() {
 
   const files = [];
 
+  let anyDownscaled = false;
   for (let i = 0; i < rects.length; i++) {
     const rect = rects[i];
-    const outCanvas = document.createElement('canvas');
-    const border = State.addBorder ? State.borderSize : 0;
-    outCanvas.width = rect.w + border * 2;
-    outCanvas.height = rect.h + border * 2;
-    const ctx = getCtx(outCanvas);
+    const { canvas: outCanvas, ctx, border, fullW, fullH, scale } = createExportCanvas(rect);
+    if (scale < 1) anyDownscaled = true;
 
     // 填充边框背景
     if (border > 0) {
       ctx.fillStyle = State.borderColor;
-      ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+      ctx.fillRect(0, 0, fullW, fullH);
     }
 
     // 绘制图像
@@ -1068,7 +1087,7 @@ async function exportAll() {
 
     // 添加水印
     if (State.addWatermark && State.watermarkText) {
-      drawWatermark(ctx, outCanvas.width, outCanvas.height);
+      drawWatermark(ctx, fullW, fullH);
     }
 
     // 文件名
@@ -1112,6 +1131,9 @@ async function exportAll() {
 
   showProgress(100);
   setStatus(`导出完成：${files.length} 个片段`);
+  if (anyDownscaled) {
+    showToast('部分超大切片已自动缩小分辨率以适配浏览器画布上限', 'warning', 4500);
+  }
 }
 
 function drawWatermark(ctx, w, h) {
@@ -1163,20 +1185,16 @@ async function exportSingle(pieceIndex) {
   const mimeType = `image/${format}`;
   const ext = format === 'jpeg' ? 'jpg' : format;
 
-  const outCanvas = document.createElement('canvas');
-  const border = State.addBorder ? State.borderSize : 0;
-  outCanvas.width = rect.w + border * 2;
-  outCanvas.height = rect.h + border * 2;
-  const ctx = getCtx(outCanvas);
+  const { canvas: outCanvas, ctx, border, fullW, fullH } = createExportCanvas(rect);
 
   if (border > 0) {
     ctx.fillStyle = State.borderColor;
-    ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+    ctx.fillRect(0, 0, fullW, fullH);
   }
 
   ctx.drawImage(entry.img, rect.x, rect.y, rect.w, rect.h, border, border, rect.w, rect.h);
 
-  if (State.addWatermark) drawWatermark(ctx, outCanvas.width, outCanvas.height);
+  if (State.addWatermark) drawWatermark(ctx, fullW, fullH);
 
   const fname = applyNamingRule(State.namingRule, {
     name: entry.name,
@@ -2559,6 +2577,7 @@ renderCanvas = function() {
   DOM.canvasWrap.style.height = displayH + 'px';
 
   const ctx = getCtx(canvas);
+  ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(State.renderScale, 0, 0, State.renderScale, 0, 0);
   ctx.save();
@@ -2577,7 +2596,7 @@ renderCanvas = function() {
 }
 
 setZoom = function(z) {
-  State.zoom = Math.max(0.05, z);
+  State.zoom = Math.min(30, Math.max(0.05, z));
   DOM.zoomLevel.textContent = Math.round(State.zoom * 100) + '%';
   renderCanvas();
   renderGuides();
@@ -2729,7 +2748,53 @@ const __baseBindEvents = bindEvents;
 bindEvents = function enhancedBindEvents() {
   __baseBindEvents();
   bindPreviewEnhancements();
+  bindPinchZoom();
 };
+
+function bindPinchZoom() {
+  let startDist = 0;
+  let startZoom = 1;
+  let pinching = false;
+
+  function pinchDist(touches) {
+    const dx = touches[0].pageX - touches[1].pageX;
+    const dy = touches[0].pageY - touches[1].pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  if (!DOM.canvasWrap) return;
+
+  DOM.canvasWrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      pinching = true;
+      startDist = pinchDist(e.touches);
+      startZoom = State.zoom;
+    }
+  }, { passive: false });
+
+  DOM.canvasWrap.addEventListener('touchmove', (e) => {
+    if (pinching && e.touches.length === 2) {
+      e.preventDefault();
+      const dist = pinchDist(e.touches);
+      if (startDist > 0) {
+        setZoom(startZoom * (dist / startDist));
+      }
+    }
+  }, { passive: false });
+
+  DOM.canvasWrap.addEventListener('touchend', (e) => {
+    if (pinching && e.touches.length < 2) {
+      pinching = false;
+      startDist = 0;
+    }
+  });
+
+  DOM.canvasWrap.addEventListener('touchcancel', () => {
+    pinching = false;
+    startDist = 0;
+  });
+}
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

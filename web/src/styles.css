@@ -615,6 +615,7 @@ body {
 .canvas-container {
   flex: 1;
   overflow: auto;
+  touch-action: pan-x pan-y;
   background:
     radial-gradient(circle at 25px 25px, var(--border) 1px, transparent 0),
     radial-gradient(circle at 0px 0px, var(--border) 1px, transparent 0);
@@ -636,12 +637,15 @@ body {
   position: relative;
   flex-shrink: 0;
   display: inline-block;
+  touch-action: pan-x pan-y;
   box-shadow: var(--shadow-lg);
 }
 
 #main-canvas {
   display: block;
   max-width: none;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
 }
 
 /* --- 分割线层 --- */
