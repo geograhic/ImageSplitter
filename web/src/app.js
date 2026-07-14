@@ -2060,6 +2060,11 @@ function getTabContent(tab) {
       </ul>
     </div>
 
+    <div style="text-align:center;padding:16px 0;margin-bottom:12px;border-top:1px solid var(--border)">
+      <p style="color:var(--text-muted);font-size:12px;margin-bottom:6px">本工具由 <a href="https://endril.com" target="_blank" rel="noopener" style="color:var(--primary-light);text-decoration:none;font-weight:600">Endril</a> 开发 · 更多工具请访问 <a href="https://apps.endril.com" target="_blank" rel="noopener" style="color:var(--primary-light);text-decoration:none;font-weight:600">apps.endril.com</a></p>
+      <p style="color:var(--text-muted);font-size:11px">开源免费，欢迎分享给需要的人 ✨</p>
+    </div>
+
     <button class="btn-secondary" onclick="switchTab('workspace')">← 返回工作台</button>
   </div>`;
   }
